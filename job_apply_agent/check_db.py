@@ -34,6 +34,7 @@ SELECT
     match_score,
     posted_date,
     application_status,
+    source,
     inserted_at,
     applied_at
 FROM jobs

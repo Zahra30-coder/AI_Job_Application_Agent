@@ -19,6 +19,7 @@ class Job(Base):
     match_score = Column(Float)
     posted_date = Column(String)
     application_status = Column(String, default="Not Applied")
+    source = Column(String)
     inserted_at = Column(
         DateTime,
         default=datetime.now

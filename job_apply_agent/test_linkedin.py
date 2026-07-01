@@ -20,6 +20,7 @@ def collect_jobs():
             posted_date=job.get("posted_date"),
             inserted_at=job.get("inserted_at"),
             applied_at=job.get("applied_at"),
+            souce=job.get("source"),
             application_status=job.get(
                 "application_status",
                 "Not Applied"

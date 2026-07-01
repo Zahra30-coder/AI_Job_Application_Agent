@@ -15,7 +15,8 @@ def save_job(
     posted_date,
     inserted_at,
     applied_at,
-    application_status
+    application_status,
+    source,
 ):
     db = SessionLocal()
 
@@ -41,7 +42,8 @@ def save_job(
         posted_date=posted_date,
         inserted_at = datetime.now(),
         applied_at = None,
-        application_status="NEW"
+        application_status="NEW",
+        source=source
     )
 
     db.add(job)

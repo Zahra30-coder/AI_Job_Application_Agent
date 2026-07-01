@@ -16,78 +16,39 @@ SEARCH_KEYWORDS = [
 LOCATION = "India"
 MAX_RESULTS = 30
 
-
 def scrape_jobs():
 
     jobs = []
 
     with sync_playwright() as p:
 
-        browser = p.chromium.launch(
-            headless=False,
-            slow_mo=500
-        )
-
-        context = browser.new_context(
-            viewport={"width": 1400, "height": 900},
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/137.0.0.0 Safari/537.36"
-            )
-        )
-
+        context = p.chromium.launch_persistent_context(
+        user_data_dir="./linkedin_profile",   # Creates/reuses this folder
+        headless=False,
+        slow_mo=500,
+        viewport={"width": 1400, "height": 900},
+        user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/137.0.0.0 Safari/537.36"
+        ),
+        args=[
+            "--disable-blink-features=AutomationControlled",
+            "--start-maximized",
+        ],
+    )
         page = context.new_page()
 
-        # ---------------- LOGIN ----------------
+        # -------- LOGIN --------
 
-        page.goto(
-            "https://www.linkedin.com/login",
-            wait_until="domcontentloaded"
-        )
+        page.goto("https://www.linkedin.com/login")
 
-        print("URL:", page.url)
-        print("TITLE:", page.title())
+        print("Log in manually...")
+        input("Press Enter after login...")
 
-        page.screenshot(
-            path="login_page.png",
-            full_page=True
-        )
+        context.storage_state(path="linkedin_state.json")
 
-        try:
-
-            page.wait_for_selector(
-                "#username",
-                timeout=60000
-            )
-
-            page.fill("#username", EMAIL)
-            page.fill("#password", PASSWORD)
-
-            page.click("button[type='submit']")
-
-            page.wait_for_timeout(5000)
-
-            print("Logged in")
-            print(page.url)
-            print(page.title())
-
-        except Exception as e:
-
-            print("Login page not detected")
-            print(e)
-
-            page.screenshot(
-                path="login_error.png",
-                full_page=True
-            )
-
-            print(page.content()[:2000])
-
-            browser.close()
-            return jobs
-
-        # ---------------- SEARCH ----------------
+        # -------- SEARCH --------
 
         for keyword in SEARCH_KEYWORDS:
 
@@ -108,15 +69,18 @@ def scrape_jobs():
 
             page.wait_for_timeout(8000)
 
-            print(page.content()[:5000])
-
             print(page.url)
             print(page.title())
 
-            page.screenshot(path="linkedin_jobs.png", full_page=True)
-
             job_cards = page.locator(".base-card")
 
+            print(page.locator(".base-card").count())
+            print(page.locator("li").count())
+            print(page.locator(".jobs-search-results-list").count())
+            print(page.locator(".job-card-container").count())
+
+            print(page.locator("li").first.inner_html())
+            
             count = min(job_cards.count(), MAX_RESULTS)
 
             print(f"Found {count} jobs")
@@ -195,6 +159,6 @@ def scrape_jobs():
                 except Exception as e:
                     print(e)
 
-        browser.close()
+        context.close()
 
     return jobs
