@@ -1,5 +1,5 @@
-from app.agents.job_collector import (
-    collect_jobs
-)
+from app.agents.job_collector import LinkedInCollector
 
-collect_jobs()
+collector = LinkedInCollector()
+
+collector.enrich_jobs()

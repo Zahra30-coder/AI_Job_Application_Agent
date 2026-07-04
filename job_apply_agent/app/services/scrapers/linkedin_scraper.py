@@ -2,6 +2,8 @@ from urllib.parse import quote
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 import os
+from app.services.job_service import get_unscraped_jobs,  update_job
+
 
 load_dotenv(r"D:\CHATBOT\.env")
 
@@ -16,14 +18,17 @@ SEARCH_KEYWORDS = [
 LOCATION = "India"
 MAX_RESULTS = 30
 
-def scrape_jobs():
 
-    jobs = []
+# ------------------------
+# Browser
+# ------------------------
 
-    with sync_playwright() as p:
+def create_browser():
 
-        context = p.chromium.launch_persistent_context(
-        user_data_dir="./linkedin_profile",   # Creates/reuses this folder
+    playwright = sync_playwright().start()
+
+    context = playwright.chromium.launch_persistent_context(
+        user_data_dir="./linkedin_profile",
         headless=False,
         slow_mo=500,
         viewport={"width": 1400, "height": 900},
@@ -37,128 +42,247 @@ def scrape_jobs():
             "--start-maximized",
         ],
     )
-        page = context.new_page()
 
-        # -------- LOGIN --------
+    page = context.new_page()
 
-        page.goto("https://www.linkedin.com/login")
+    return playwright, context, page
 
-        print("Log in manually...")
-        input("Press Enter after login...")
+# ------------------------
+# Login
+# ------------------------
 
-        context.storage_state(path="linkedin_state.json")
+def login(page, context):
 
-        # -------- SEARCH --------
+    page.goto("https://www.linkedin.com/login")
 
-        for keyword in SEARCH_KEYWORDS:
+    print("Log in manually...")
+    input("Press Enter after login...")
 
-            search_url = (
-                "https://www.linkedin.com/jobs/search/"
-                f"?keywords={quote(keyword)}"
-                f"&location={quote(LOCATION)}"
-                "&f_WT=2"
-                "&f_E=2,3"
-            )
+    context.storage_state(path="linkedin_state.json")
 
-            print(f"\nSearching: {keyword}")
 
-            page.goto(
-                search_url,
-                wait_until="domcontentloaded"
-            )
+# ------------------------
+# Scrape ONE job
+# ------------------------
 
-            page.wait_for_timeout(8000)
+from playwright.sync_api import Page
 
-            print(page.url)
-            print(page.title())
 
-            job_cards = page.locator(".base-card")
+def scrape_job(page: Page, job_url: str):
 
-            print(page.locator(".base-card").count())
-            print(page.locator("li").count())
-            print(page.locator(".jobs-search-results-list").count())
-            print(page.locator(".job-card-container").count())
+    print(f"\nScraping: {job_url}")
 
-            print(page.locator("li").first.inner_html())
-            
-            count = min(job_cards.count(), MAX_RESULTS)
+    page.goto(job_url, wait_until="domcontentloaded")
+    page.wait_for_selector("h2:has-text('About the job')", timeout=15000)
+    page.wait_for_timeout(5000)
 
-            print(f"Found {count} jobs")
+    header = extract_header(page)
+    description = extract_description(page)
+    job_details = extract_job_details(page)
+    easy_apply = extract_easy_apply(page)
+    skills = extract_skills(description)
 
-            for i in range(count):
+    return {
+        "title": header["title"],
+        "company": header["company"],
+        "location": header["location"],
+        "posted_date": header["posted_date"],
+        "applicants": header["applicants"],
 
-                card = job_cards.nth(i)
+        "description": description,
 
-                try:
+        "experience": job_details["experience"],
+        "employment_type": job_details["employment_type"],
+        "remote": job_details["remote"],
+        "job_status": job_details["job_status"],
 
-                    title = card.locator(
-                        ".base-search-card__title"
-                    ).inner_text().strip()
+        "easy_apply": easy_apply,
 
-                    company = card.locator(
-                        ".base-search-card__subtitle"
-                    ).inner_text().strip()
+        "skills": ", ".join(skills)
+    }
 
-                    location = card.locator(
-                        ".job-search-card__location"
-                    ).inner_text().strip()
 
-                    posted_date = card.locator(
-                        "time"
-                    ).inner_text().strip()
+def extract_header(page: Page):
 
-                    job_url = card.locator(
-                        "a"
-                    ).first.get_attribute("href")
+    header = {
+        "title": "",
+        "company": "",
+        "location": "",
+        "posted_date": "",
+        "applicants": ""
+    }
 
-                    card.click()
+    try:
+        header["title"] = page.locator("h1").first.inner_text().strip()
+    except:
+        pass
 
-                    page.wait_for_timeout(3000)
+    try:
+        header["company"] = page.locator(
+            'a[href*="/company/"]'
+        ).first.inner_text().strip()
+    except:
+        pass
 
-                    try:
-                        description = page.locator(
-                            ".show-more-less-html__markup"
-                        ).inner_text()
-                    except:
-                        description = ""
+    try:
+        metadata = page.locator(
+            "p:has-text('ago')"
+        ).first.inner_text()
 
-                    description_lower = description.lower()
+        parts = [x.strip() for x in metadata.split("·")]
 
-                    experience = None
+        if len(parts) >= 1:
+            header["location"] = parts[0]
 
-                    for year in range(6):
-                        if f"{year} year" in description_lower:
-                            experience = year
-                            break
+        if len(parts) >= 2:
+            header["posted_date"] = parts[1]
 
-                    employment_type = ""
+        if len(parts) >= 3:
+            header["applicants"] = parts[2]
 
-                    if "full-time" in description_lower:
-                        employment_type = "Full-time"
-                    elif "contract" in description_lower:
-                        employment_type = "Contract"
-                    elif "intern" in description_lower:
-                        employment_type = "Internship"
-                    elif "part-time" in description_lower:
-                        employment_type = "Part-time"
+    except:
+        pass
 
-                    jobs.append({
-                        "title": title,
-                        "company": company,
-                        "location": location,
-                        "job_url": job_url,
-                        "description": description,
-                        "experience": experience,
-                        "employment_type": employment_type,
-                        "skills": "",
-                        "match_score": 0,
-                        "posted_date": posted_date,
-                        "application_status": "Not Applied"
-                    })
+    return header
 
-                except Exception as e:
-                    print(e)
 
-        context.close()
+def extract_description(page: Page):
 
-    return jobs
+    try:
+
+        return page.locator(
+            '[data-testid="expandable-text-box"]'
+        ).inner_text().strip()
+
+    except:
+
+        return ""
+import re
+
+import re
+
+def extract_experience(description: str):
+
+    if not description:
+        return ""
+
+    description = description.lower()
+
+    patterns = [
+        r"\d+\s*\+\s*years?",
+        r"\d+\s*-\s*\d+\s*years?",
+        r"\d+\s*to\s*\d+\s*years?",
+        r"\d+\s*years?"
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, description)
+        if match:
+            return match.group().strip()
+
+    # Fallback
+    for year in range(6):
+        if f"{year} year" in description or f"{year} years" in description:
+            return f"{year} years"
+
+    return ""
+
+def extract_job_details(page: Page):
+
+    details = {
+        "employment_type": "",
+        "experience": "",
+        "remote": False,
+        "job_status": "Open"
+    }
+
+    text = page.locator("body").inner_text().lower()
+
+    if "remote" in text:
+        details["remote"] = True
+
+    if "full-time" in text:
+        details["employment_type"] = "Full-time"
+
+    elif "contract" in text:
+        details["employment_type"] = "Contract"
+
+    elif "internship" in text:
+        details["employment_type"] = "Internship"
+
+    elif "part-time" in text:
+        details["employment_type"] = "Part-time"
+
+    if "entry level" in text:
+        details["experience"] = "Entry level"
+
+    elif "associate" in text:
+        details["experience"] = "Associate"
+
+    elif "mid-senior" in text:
+        details["experience"] = "Mid-Senior"
+
+    elif "director" in text:
+        details["experience"] = "Director"
+
+    elif "executive" in text:
+        details["experience"] = "Executive"
+
+    if "no longer accepting applications" in text:
+        details["job_status"] = "Closed"
+
+    return details
+
+
+def extract_easy_apply(page: Page):
+
+    return page.locator(
+        "button:has-text('Easy Apply')"
+    ).count() > 0
+
+
+def extract_skills(description: str):
+
+    skills = []
+
+    keywords = [
+        "Python",
+        "FastAPI",
+        "Flask",
+        "Django",
+        "React",
+        "Next.js",
+        "JavaScript",
+        "TypeScript",
+        "Docker",
+        "Kubernetes",
+        "Azure",
+        "AWS",
+        "GCP",
+        "Redis",
+        "PostgreSQL",
+        "MySQL",
+        "MongoDB",
+        "LLM",
+        "OpenAI",
+        "Gemini",
+        "LangChain",
+        "CrewAI",
+        "RAG",
+        "MCP",
+        "Machine Learning",
+        "Deep Learning",
+        "TensorFlow",
+        "PyTorch",
+        "n8n",
+        "automation"
+    ]
+
+    lower = description.lower()
+
+    for skill in keywords:
+
+        if skill.lower() in lower:
+            skills.append(skill)
+
+    return skills

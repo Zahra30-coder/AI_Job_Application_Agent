@@ -2,12 +2,8 @@ from urllib.parse import urlparse
 
 
 KEYWORDS = [
-    "/jobs/",
     "/jobs/view/",
     "/comm/jobs/",
-    "/e/v2",
-    "jobs/view",
-    "currentJobId",
 ]
 
 

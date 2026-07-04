@@ -3,6 +3,7 @@ from app.gmail.processors.html_parser import get_html
 from app.gmail.processors.link_extractor import extract_links
 from app.gmail.processors.link_filter import extract_job_links
 from app.gmail.processors.url_normalizer import normalize_urls
+from app.services.job_service import save_job_url
 
 
 class GmailCollector:
@@ -10,10 +11,10 @@ class GmailCollector:
     def __init__(self):
         self.service = get_gmail_service()
 
-    def search_linkedin_emails(self, max_results=5):
+    def search_linkedin_emails(self, max_results=50):
 
         # Change this if needed
-        query = "linkedin newer_than:30d"
+        query = "from:jobalerts-noreply@linkedin.com newer_than:5d"
 
         response = (
             self.service.users()
@@ -58,10 +59,39 @@ class GmailCollector:
 
         for email in emails:
 
-            print("=" * 80)
+            print("=" * 10)
             print("Message ID:", email["id"])
 
             message = self.get_message(email["id"])
+        
+            # -----------------------------
+            # Extract email headers
+            # -----------------------------
+            subject = ""
+            sender = ""
+
+            for header in message["payload"].get("headers", []):
+                name = header["name"].lower()
+
+                if name == "subject":
+                    subject = header["value"]
+
+                elif name == "from":
+                    sender = header["value"]
+
+            print(f"From   : {sender}")
+            print(f"Subject: {subject}")
+
+            # Only process LinkedIn Job Alert emails
+            if "jobalerts-noreply@linkedin.com" not in sender.lower():
+                print("⏭️ Skipping (not a LinkedIn Job Alert)\n")
+                continue
+
+            print("✅ LinkedIn Job Alert found")
+
+            # -----------------------------
+            # Extract HTML
+            # -----------------------------
 
             html = get_html(message["payload"])
 
@@ -70,6 +100,10 @@ class GmailCollector:
                 continue
 
             print("✅ HTML extracted")
+
+            # -----------------------------
+            # Extract all links
+            # -----------------------------
 
             links = extract_links(html)
 
@@ -87,6 +121,9 @@ class GmailCollector:
             print(f"Job links after filter: {len(job_links)}")
 
             job_links = normalize_urls(job_links)
+
+            for link in job_links:
+                save_job_url(link)
 
             all_links.extend(job_links)
 
