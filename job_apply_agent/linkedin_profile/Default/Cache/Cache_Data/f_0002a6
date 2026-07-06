@@ -1,0 +1,835 @@
+WEBVTT
+
+00:00:00.280 --> 00:00:04.071
+So we talking about building LM today. So I think a lot of
+
+00:00:04.071 --> 00:00:07.733
+you have heard of LMS before, but just as a quick recap,
+
+00:00:07.733 --> 00:00:11.396
+LLM standing for large language models are basically all
+
+00:00:11.396 --> 00:00:15.122
+the chat bots that you've been hearing about recently. So
+
+00:00:15.122 --> 00:00:18.913
+ChatGPT from opening I cloud from Entropic Gemini and Lama
+
+00:00:18.913 --> 00:00:22.447
+and other type of models like this. And today we'll be
+
+00:00:22.447 --> 00:00:26.174
+talking about how do they actually work? So it's going to
+
+00:00:26.174 --> 00:00:30.100
+be an overview because it's only 1 lecture and it's hard to.
+
+00:00:30.100 --> 00:00:33.341
+President, you think, but hopefully I'll touch a little bit
+
+00:00:33.341 --> 00:00:36.475
+about all the components that are needed to train as some
+
+00:00:36.475 --> 00:00:39.393
+of these islands. Also, if you have questions, please
+
+00:00:39.393 --> 00:00:42.473
+interrupt me and ask if you have a question. Most likely
+
+00:00:42.473 --> 00:00:45.499
+other people in the room or on Zoom have other have the
+
+00:00:45.499 --> 00:00:48.680
+same questions, so please ask.
+
+00:00:48.680 --> 00:00:52.082
+Great. So what matters when training LMS? And there are a
+
+00:00:52.082 --> 00:00:55.602
+few key components that matter. One is the architecture. So
+
+00:00:55.602 --> 00:00:59.122
+as you probably all know, LMS are neural networks. And when
+
+00:00:59.122 --> 00:01:02.466
+you think about neural networks, you have to think about
+
+00:01:02.466 --> 00:01:05.927
+what architecture you're using. Another component which is
+
+00:01:05.927 --> 00:01:09.153
+really important is the training loss and the training
+
+00:01:09.153 --> 00:01:12.438
+algorithm. So how you actually train these models, then
+
+00:01:12.438 --> 00:01:15.489
+it's data. So what do you train these models on the
+
+00:01:15.489 --> 00:01:18.610
+evaluation, which is how do you know whether you're.
+
+00:01:18.610 --> 00:01:22.448
+Actually making progress towards the goal of MLM's and then
+
+00:01:22.448 --> 00:01:26.159
+the system component. So that is like how do you actually
+
+00:01:26.159 --> 00:01:29.870
+make these models run on modern hardware, which is really
+
+00:01:29.870 --> 00:01:33.453
+important because these models are really large. So now
+
+00:01:33.453 --> 00:01:37.228
+more than ever, systems actually really an important topic
+
+00:01:37.228 --> 00:01:38.570
+for LMS.
+
+00:01:38.570 --> 00:01:42.025
+So those five components, you probably all know that ALMS
+
+00:01:42.025 --> 00:01:45.481
+and if you don't know, LM's are all based on Transformers
+
+00:01:45.481 --> 00:01:48.996
+or at least some version of Transformers. And I'm actually
+
+00:01:48.996 --> 00:01:52.571
+not gonna talk about the architecture today. One, because I
+
+00:01:52.571 --> 00:01:55.967
+gave us here lecture on Transformers a few weeks ago and
+
+00:01:55.967 --> 00:01:59.304
+two, because you can find so much information online on
+
+00:01:59.304 --> 00:02:02.700
+Transformers, but I think you can it's there's much less
+
+00:02:02.700 --> 00:02:06.275
+information about the other 4 topics. I really want to talk
+
+00:02:06.275 --> 00:02:07.880
+about those.
+
+00:02:07.880 --> 00:02:11.625
+And another thing to say is that most of academia actually
+
+00:02:11.625 --> 00:02:15.308
+focuses on architecture and training algorithm and losses
+
+00:02:15.308 --> 00:02:18.736
+as academics, And I've done that for a big part of my
+
+00:02:18.736 --> 00:02:22.546
+career is simply we like thinking that this is like we make
+
+00:02:22.546 --> 00:02:26.292
+new architectures, new models, and it seems like it's very
+
+00:02:26.292 --> 00:02:29.657
+important. But in reality, honestly, what matters in
+
+00:02:29.657 --> 00:02:32.895
+practice is mostly the three other topics. So data
+
+00:02:32.895 --> 00:02:36.260
+evaluation systems, which is one of most of industry
+
+00:02:36.260 --> 00:02:38.410
+actually focuses on.
+
+00:02:38.410 --> 00:02:40.669
+So that's also one of the reasons why I don't want to talk
+
+00:02:40.669 --> 00:02:42.967
+too much about the architecture, because really the rest is
+
+00:02:42.967 --> 00:02:45.030
+super important.
+
+00:02:45.030 --> 00:02:48.193
+Great. So overview of the lecture, I'll be talking about
+
+00:02:48.193 --> 00:02:51.523
+pre training. So pre training, you probably heard that word.
+
+00:02:51.523 --> 00:02:54.687
+This is the general word. This is kind of the classical
+
+00:02:54.687 --> 00:02:57.906
+language modeling paradigm where you basically train your
+
+00:02:57.906 --> 00:03:01.070
+language model to essentially model all of Internet. And
+
+00:03:01.070 --> 00:03:04.011
+then there's a post training, which is a more recent
+
+00:03:04.011 --> 00:03:07.231
+paradigm, which is taking these large language models and
+
+00:03:07.231 --> 00:03:10.561
+making them essentially AI assistance. So this is more of a
+
+00:03:10.561 --> 00:03:13.780
+recent trend since ChatGPT. So if you ever heard of GPT 3
+
+00:03:13.780 --> 00:03:14.450
+or GPT 2.
+
+00:03:14.450 --> 00:03:17.613
+That's really pre training land. If you heard of tragic,
+
+00:03:17.613 --> 00:03:20.942
+which you probably have, this is really post training land.
+
+00:03:20.942 --> 00:03:24.217
+So we talking about both, but I'll start with pre training
+
+00:03:24.217 --> 00:03:27.380
+and specifically I'll talk about what is the task of pre
+
+00:03:27.380 --> 00:03:32.230
+training alms and what is the loss that people actually use.
+
+00:03:32.230 --> 00:03:35.772
+So a language modeling this is a quick recap. Language
+
+00:03:35.772 --> 00:03:39.379
+models at a high level are simply models of probability
+
+00:03:39.379 --> 00:03:42.987
+distribution over sequences of tokens of words. So it's
+
+00:03:42.987 --> 00:03:46.465
+basically some model of P of X1 to Excel, where X1 is
+
+00:03:46.465 --> 00:03:50.265
+basically word 1 and Excel is the last one in the sequence
+
+00:03:50.265 --> 00:03:53.679
+when the sentence. So very concretely, if you have a
+
+00:03:53.679 --> 00:03:57.415
+sentence like the mouse ate the cheese, what the language
+
+00:03:57.415 --> 00:04:01.216
+model gives you is simply the probability of this sentence
+
+00:04:01.216 --> 00:04:02.510
+being uttered by A.
+
+00:04:02.510 --> 00:04:06.114
+Human are being found on on online. So if you have another
+
+00:04:06.114 --> 00:04:09.352
+sentence like the the mouse ate cheese here, there's
+
+00:04:09.352 --> 00:04:12.834
+grammatical mistakes. So the model should know that this
+
+00:04:12.834 --> 00:04:16.255
+should have some syntactic knowledge, so it should know
+
+00:04:16.255 --> 00:04:20.390
+that this has less likelihood of appearing online.
+
+00:04:20.390 --> 00:04:23.528
+If you have another sentence like the cheese ate the mouse,
+
+00:04:23.528 --> 00:04:26.509
+then the model should hopefully know about the fact that
+
+00:04:26.509 --> 00:04:29.491
+usually cheese don't eat mouse, so there's some semantic
+
+00:04:29.491 --> 00:04:32.577
+knowledge and this is less likely that the first sentence.
+
+00:04:32.577 --> 00:04:35.610
+So this is basically at a high level what language models
+
+00:04:35.610 --> 00:04:37.730
+are.
+
+00:04:37.730 --> 00:04:40.881
+One word that you probably have been hearing a lot in the
+
+00:04:40.881 --> 00:04:43.978
+news or generative models. And so this is just something
+
+00:04:43.978 --> 00:04:47.238
+that can generate models that can generate sentences or can
+
+00:04:47.238 --> 00:04:50.390
+generate some data. The reason why we say language models
+
+00:04:50.390 --> 00:04:53.487
+are generative models is that once you have a model of a
+
+00:04:53.487 --> 00:04:56.529
+distribution, you can simply sample from this model and
+
+00:04:56.529 --> 00:04:59.627
+then we can generate data. So you can generate sentences
+
+00:04:59.627 --> 00:05:02.887
+using language model. So the type of models that people are
+
+00:05:02.887 --> 00:05:05.712
+all currently using are what we call autoregressive
+
+00:05:05.712 --> 00:05:07.640
+language models. And the key idea.
+
+00:05:07.640 --> 00:05:10.647
+Autoregressive language models is that you take this
+
+00:05:10.647 --> 00:05:14.053
+distribution over words and you basically decompose it into
+
+00:05:14.053 --> 00:05:17.344
+the into the distribution of the first word, multiply the
+
+00:05:17.344 --> 00:05:20.069
+by the distribution of or the likelihood of the
+
+00:05:20.069 --> 00:05:23.304
+distribution of the second word given the first word and
+
+00:05:23.304 --> 00:05:26.709
+multiplied by P of the third word given the 1st 2 words. So
+
+00:05:26.709 --> 00:05:30.057
+there's no approximation here. This is just the chain rule
+
+00:05:30.057 --> 00:05:33.122
+probability which you hopefully you all know about. I
+
+00:05:33.122 --> 00:05:36.300
+really know approximation is just one way of modeling a
+
+00:05:36.300 --> 00:05:38.140
+distribution, so slightly more.
+
+00:05:38.140 --> 00:05:41.361
+I seek and write it as a product of peas of the next word
+
+00:05:41.361 --> 00:05:44.360
+given everything which happened in the past so of the
+
+00:05:44.360 --> 00:05:47.525
+context. So this is what we call autoregressive language
+
+00:05:47.525 --> 00:05:50.802
+models. Again, this is really not the only way of modeling
+
+00:05:50.802 --> 00:05:53.968
+distribution, this is just one way. It has some benefits
+
+00:05:53.968 --> 00:05:57.189
+and some downsides. 1 downside of autoregressive language
+
+00:05:57.189 --> 00:05:59.966
+models is that when you actually sample from disk
+
+00:05:59.966 --> 00:06:03.131
+autoregressive language model, you basically have a full
+
+00:06:03.131 --> 00:06:06.463
+loop which generates the next word, then conditions on that
+
+00:06:06.463 --> 00:06:08.200
+next word and then regenerate.
+
+00:06:08.200 --> 00:06:10.885
+In other words, so basically if you have a longer sentence
+
+00:06:10.885 --> 00:06:13.298
+that you want to generate you, it takes more time to
+
+00:06:13.298 --> 00:06:15.892
+generate it. So there are some downsides of this current
+
+00:06:15.892 --> 00:06:18.533
+paradigm, but that's what we currently have. So I'm going
+
+00:06:18.533 --> 00:06:21.500
+to talk about this one.
+
+00:06:21.500 --> 00:06:24.622
+Great. So autoregressive language models at a high level,
+
+00:06:24.622 --> 00:06:27.529
+what the task of autoregressive language model is, is
+
+00:06:27.529 --> 00:06:30.651
+simply predicting the next word as I just said. So if you
+
+00:06:30.651 --> 00:06:33.827
+have a sentence like she likely prefers one potential next
+
+00:06:33.827 --> 00:06:35.750
+word might be dogs.
+
+00:06:35.750 --> 00:06:39.797
+And the the way we do it is that we first tokenize. So you
+
+00:06:39.797 --> 00:06:43.775
+take these words or sub words, you tokenize them and then
+
+00:06:43.775 --> 00:06:47.850
+you give an ID for each token. So you have 123.
+
+00:06:47.850 --> 00:06:50.768
+And then you pass it through this black box. As I already
+
+00:06:50.768 --> 00:06:53.686
+said, we're not going to talk about the architecture. You
+
+00:06:53.686 --> 00:06:56.554
+just pass it, pass it through a model and you then get a
+
+00:06:56.554 --> 00:06:59.573
+distribution, a probability distribution over the next word,
+
+00:06:59.573 --> 00:07:01.530
+over the next token.
+
+00:07:01.530 --> 00:07:04.674
+And then you sample from this distribution, you get a new
+
+00:07:04.674 --> 00:07:07.818
+token and then you did tokenize. So you get a new ID, you
+
+00:07:07.818 --> 00:07:10.908
+did tokenize. And that's how you basically sample from a
+
+00:07:10.908 --> 00:07:13.943
+language model. One thing which is important to note is
+
+00:07:13.943 --> 00:07:16.925
+that the last two tabs are actually only needed during
+
+00:07:16.925 --> 00:07:20.069
+inference. When you do training, you just need to predict
+
+00:07:20.069 --> 00:07:23.268
+the most likely token and you can just compare to the real
+
+00:07:23.268 --> 00:07:26.357
+token which happened in practice. And then you basically
+
+00:07:26.357 --> 00:07:29.014
+change the weights of your model to increase the
+
+00:07:29.014 --> 00:07:33.020
+probability of generating that token.
+
+00:07:33.600 --> 00:07:36.567
+Great. So autoregressive neural language models. So to be
+
+00:07:36.567 --> 00:07:39.380
+slightly more specific still without talking about the
+
+00:07:39.380 --> 00:07:42.399
+architecture, the first thing we do is that we have all of
+
+00:07:42.399 --> 00:07:44.060
+these. Sorry, yes.
+
+00:07:44.060 --> 00:07:47.573
+This slide you predicting the probability of the next token
+
+00:07:47.573 --> 00:07:50.970
+so this means that your final output vector has to be the
+
+00:07:50.970 --> 00:07:54.367
+same dimensionality as the number of tokens that you have
+
+00:07:54.367 --> 00:07:57.705
+yes. How do you deal with like if you have more template
+
+00:07:57.705 --> 00:08:01.101
+adding more tokens to your corpus yeah. So we're going to
+
+00:08:01.101 --> 00:08:04.615
+talk about tokenization actually later so you will get some
+
+00:08:04.615 --> 00:08:07.895
+sense of this. You basically can't deal with adding new
+
+00:08:07.895 --> 00:08:11.408
+tokens I'm kind of exaggerating there are methods for doing
+
+00:08:11.408 --> 00:08:14.060
+it but essentially people don't do it so.
+
+00:08:14.060 --> 00:08:16.658
+It's really important to think about how you tokenize your
+
+00:08:16.658 --> 00:08:19.256
+text, and that's why we'll talk about that later. But it's
+
+00:08:19.256 --> 00:08:21.502
+a very good point to notice that you basically the
+
+00:08:21.502 --> 00:08:24.056
+vocabulary size. So the number of tokens that you have is
+
+00:08:24.056 --> 00:08:26.478
+essentially the output of your language model. So it's
+
+00:08:26.478 --> 00:08:29.060
+actually pretty, pretty large.
+
+00:08:29.060 --> 00:08:32.519
+OK, so auto regressive neural language models, First thing
+
+00:08:32.519 --> 00:08:35.743
+you do is that you take every word or every token, you
+
+00:08:35.743 --> 00:08:39.203
+embed them. So you get some vector representation for each
+
+00:08:39.203 --> 00:08:42.721
+of these tokens. You pass them through some neural network,
+
+00:08:42.721 --> 00:08:45.593
+as we said, it's the transformer. Then you get a
+
+00:08:45.593 --> 00:08:48.935
+representation for all the word and all the words in the
+
+00:08:48.935 --> 00:08:52.219
+context. So it's basically representation of the entire
+
+00:08:52.219 --> 00:08:55.561
+sentence. You pass it through a linear layer as you just
+
+00:08:55.561 --> 00:08:58.680
+said, to basically map it to the number so that the.
+
+00:08:58.680 --> 00:09:02.324
+Output. The number of outputs is the number of tokens. You
+
+00:09:02.324 --> 00:09:05.783
+then pass it through some softmax and you basically get
+
+00:09:05.783 --> 00:09:09.304
+probability distribution over the next words given every
+
+00:09:09.304 --> 00:09:12.540
+word in the context.
+
+00:09:12.670 --> 00:09:15.973
+And the last that you use is basically it's essentially a
+
+00:09:15.973 --> 00:09:19.277
+task of classifying the next token. So it's a very simple
+
+00:09:19.277 --> 00:09:22.694
+kind of machine learning task. So you use the cross entropy
+
+00:09:22.694 --> 00:09:26.111
+loss where you basically you look at the actual target that
+
+00:09:26.111 --> 00:09:29.415
+happened, which is a target distribution, which is A1 hot
+
+00:09:29.415 --> 00:09:32.775
+encoding, which here in this case says, I saw the real one
+
+00:09:32.775 --> 00:09:36.079
+that happened is cat. So that's one hot distribution over
+
+00:09:36.079 --> 00:09:39.496
+cat. And here this is the actual, you see my mouse. Oh yeah,
+
+00:09:39.496 --> 00:09:42.160
+this is the distribution that you generated.
+
+00:09:42.160 --> 00:09:45.095
+And we see you do cross entropy, which really just
+
+00:09:45.095 --> 00:09:48.433
+increases the probability of generating cat and decreases
+
+00:09:48.433 --> 00:09:51.887
+all the the probability of generating all the other tokens.
+
+00:09:51.887 --> 00:09:55.340
+One thing to notice is that as you all know, again, this is
+
+00:09:55.340 --> 00:09:58.678
+just equivalent to maximizing the text log log likelihood
+
+00:09:58.678 --> 00:10:02.017
+because you can just rewrite the Max over the probability
+
+00:10:02.017 --> 00:10:05.470
+of this autoregressive language modeling task as just being
+
+00:10:05.470 --> 00:10:08.866
+this minimum of I just added the log here and minus, which
+
+00:10:08.866 --> 00:10:12.390
+is just the minimum of the loss, which is the cross entropy.
+
+00:10:12.390 --> 00:10:15.110
+Cost. So basically, minimizing the loss is the same thing
+
+00:10:15.110 --> 00:10:17.730
+as maximizing the likelihood of your text.
+
+00:10:17.730 --> 00:10:21.240
+Any question questions?
+
+00:10:23.870 --> 00:10:25.670
+OK.
+
+00:10:25.670 --> 00:10:27.290
+Tokenize them.
+
+00:10:27.290 --> 00:10:30.416
+And so this is one thing that people usually don't talk
+
+00:10:30.416 --> 00:10:33.766
+that much about. Tokenizes are extremely important. So it's
+
+00:10:33.766 --> 00:10:37.060
+really important that you kind of understand at least what
+
+00:10:37.060 --> 00:10:40.410
+they do at a high level. So why do we need to tokenize this
+
+00:10:40.410 --> 00:10:43.648
+in the 1st place? First, it's more general than words. So
+
+00:10:43.648 --> 00:10:46.886
+one simple thing that you might think is we're just going
+
+00:10:46.886 --> 00:10:50.068
+to take every word that we will have. You just say every
+
+00:10:50.068 --> 00:10:53.418
+word is a new token in its own. But then what happens is if
+
+00:10:53.418 --> 00:10:56.600
+there's a typo in your word, then you might not have any
+
+00:10:56.600 --> 00:10:57.700
+token associated.
+
+00:10:57.700 --> 00:11:00.859
+With this, this word with a typo and then you don't know
+
+00:11:00.859 --> 00:11:03.963
+how to actually pass this word with a typo into a large
+
+00:11:03.963 --> 00:11:07.177
+language model. So what do you do next? And also, even if
+
+00:11:07.177 --> 00:11:10.447
+you think about words, words is a very like words are fine
+
+00:11:10.447 --> 00:11:13.773
+with Latin based languages. But if you think about language
+
+00:11:13.773 --> 00:11:16.877
+like Thai, you won't have a simple way of tokenizing by
+
+00:11:16.877 --> 00:11:20.036
+spaces because there are no spaces between words. And so
+
+00:11:20.036 --> 00:11:23.362
+really tokens are much more general than words. First thing,
+
+00:11:23.362 --> 00:11:26.299
+second thing that you might think is that you might
+
+00:11:26.299 --> 00:11:27.700
+tokenize every sentence.
+
+00:11:27.700 --> 00:11:31.343
+Character by character you might say A is 1 token, B is
+
+00:11:31.343 --> 00:11:35.182
+another token. That would actually work, and probably very
+
+00:11:35.182 --> 00:11:38.891
+well. The issue is that then your sequence becomes super
+
+00:11:38.891 --> 00:11:42.469
+long, and as you probably remember from the lecture on
+
+00:11:42.469 --> 00:11:46.243
+Transformers, the complexity grows quadratically with the
+
+00:11:46.243 --> 00:11:49.886
+length of sequences, so you really don't want to have a
+
+00:11:49.886 --> 00:11:53.530
+super long sequence. So tokenizes basically try to deal
+
+00:11:53.530 --> 00:11:57.109
+with those two problems and give common subsequences a
+
+00:11:57.109 --> 00:11:58.170
+certain token.
+
+00:11:58.170 --> 00:12:01.644
+And usually how you should be thinking about is around an
+
+00:12:01.644 --> 00:12:06.340
+average of every token is around 3-4 letters.
+
+00:12:06.350 --> 00:12:09.431
+And there are many algorithms for tokenization. I'll just
+
+00:12:09.431 --> 00:12:12.513
+talk about one of them to give you a high level, which is
+
+00:12:12.513 --> 00:12:15.700
+what we call Bipan coding, which is actually pretty common.
+
+00:12:15.700 --> 00:12:18.888
+One of the two most common tokenizers, and the way that you
+
+00:12:18.888 --> 00:12:22.076
+train a tokenizer is that first you start with a very large
+
+00:12:22.076 --> 00:12:24.945
+corpus of text. And here I'm really not talking about
+
+00:12:24.945 --> 00:12:28.133
+training a large language model yet. This is purely for the
+
+00:12:28.133 --> 00:12:31.267
+tokenization step. So this is my large corpus of text with
+
+00:12:31.267 --> 00:12:34.296
+these 5 words. And then you associate every character in
+
+00:12:34.296 --> 00:12:35.960
+this corpus of text different.
+
+00:12:35.960 --> 00:12:39.102
+OK, so here I just split up every character with a
+
+00:12:39.102 --> 00:12:42.798
+different token and I just color-coded all of those tokens.
+
+00:12:42.798 --> 00:12:46.372
+And then what you do is that you go through your text and
+
+00:12:46.372 --> 00:12:49.884
+every time you see pairs of tokens that are very common,
+
+00:12:49.884 --> 00:12:53.580
+the most common pair of token, you just merge them. So here
+
+00:12:53.580 --> 00:12:57.154
+you see three times the tokens T&O next to each other. So
+
+00:12:57.154 --> 00:13:00.789
+you're just going to say this is a new token. And then you
+
+00:13:00.789 --> 00:13:04.178
+continue, you repeat that. So now you have to OK talk,
+
+00:13:04.178 --> 00:13:06.070
+which happens three times.
+
+00:13:06.070 --> 00:13:10.135
+Talk with an E that happens, sorry, two times and in token,
+
+00:13:10.135 --> 00:13:14.133
+which happens twice and then ex which also happened twice.
+
+00:13:14.133 --> 00:13:17.995
+So this is that if you were to train a tokenizer on this
+
+00:13:17.995 --> 00:13:21.925
+corpus of text, which is very small, that's how you would
+
+00:13:21.925 --> 00:13:25.991
+finish with a token like a train tokenizer. In reality, you
+
+00:13:25.991 --> 00:13:30.057
+do it on much larger corpuses of text. And this is the real
+
+00:13:30.057 --> 00:13:33.987
+tokenizer of actually, I think this is GPT 3 or check GPT
+
+00:13:33.987 --> 00:13:36.090
+and here you see how it would.
+
+00:13:36.090 --> 00:13:39.406
+Actually separate these words. So basically you see the
+
+00:13:39.406 --> 00:13:42.840
+same thing as what we gave in the previous example. Token
+
+00:13:42.840 --> 00:13:46.215
+becomes its own token. So tokenizer is actually split up
+
+00:13:46.215 --> 00:13:49.630
+into two tokens, Token and Eliza.
+
+00:13:49.630 --> 00:13:53.257
+Yeah, that's all about tokenizes. Any question on that?
+
+00:13:53.257 --> 00:13:56.100
+Yeah, spaces.
+
+00:13:56.310 --> 00:14:00.040
+Yeah. So actually there's a a step before tokenizers, which
+
+00:14:00.040 --> 00:14:03.647
+is what we call pre tokenizers, which is exactly what you
+
+00:14:03.647 --> 00:14:07.253
+just said. So this is mostly in theory, there's no reason
+
+00:14:07.253 --> 00:14:10.859
+to deal with spaces and punctuation separately. You could
+
+00:14:10.859 --> 00:14:15.320
+just say every space gets its own token every.
+
+00:14:15.320 --> 00:14:18.255
+Situation get its own token and you could just do all the
+
+00:14:18.255 --> 00:14:20.987
+merging. The problem is that so there's an efficiency
+
+00:14:20.987 --> 00:14:23.922
+question. Actually training these tokenizers takes a long
+
+00:14:23.922 --> 00:14:26.959
+time. So you better because you have to consider every pair
+
+00:14:26.959 --> 00:14:29.894
+of token. So what you end up doing is saying if there's a
+
+00:14:29.894 --> 00:14:32.728
+space, this is very like pre tokenizers or very English
+
+00:14:32.728 --> 00:14:35.612
+specific. You say if there's a space, we're not going to
+
+00:14:35.612 --> 00:14:38.446
+start looking at the the token that came before and the
+
+00:14:38.446 --> 00:14:41.128
+token that came afterwards. So you're not merging in
+
+00:14:41.128 --> 00:14:44.063
+between spaces, but this is just like a optimistic like a
+
+00:14:44.063 --> 00:14:47.430
+computational optimization.

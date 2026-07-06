@@ -1,3 +1,6 @@
-2026/07/04-18:21:02.228 ca0 Reusing MANIFEST D:\CHATBOT\job_apply_agent\linkedin_profile\Default\Session Storage/MANIFEST-000001
-2026/07/04-18:21:02.231 ca0 Recovering log #7
-2026/07/04-18:21:02.233 ca0 Reusing old log D:\CHATBOT\job_apply_agent\linkedin_profile\Default\Session Storage/000007.log 
+2026/07/06-17:36:07.994 41b0 Reusing MANIFEST D:\CHATBOT\job_apply_agent\linkedin_profile\Default\Session Storage/MANIFEST-000001
+2026/07/06-17:36:08.000 41b0 Recovering log #10
+2026/07/06-17:36:08.003 41b0 Reusing old log D:\CHATBOT\job_apply_agent\linkedin_profile\Default\Session Storage/000010.log 
+2026/07/06-17:40:33.506 3534 Level-0 table #14: started
+2026/07/06-17:40:33.525 3534 Level-0 table #14: 20647 bytes OK
+2026/07/06-17:40:33.534 3534 Delete type=0 #10

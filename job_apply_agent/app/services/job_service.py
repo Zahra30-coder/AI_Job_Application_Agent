@@ -154,6 +154,7 @@ def update_job(job_id: int, details: dict):
         job.posted_date = details.get("posted_date")
         job.active = details.get("active", job.active)
         job.remote = details.get("remote", job.remote)
+        job.easy_apply = details.get("easy apply", job.easy_apply)
 
         db.commit()
 

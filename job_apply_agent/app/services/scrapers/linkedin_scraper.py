@@ -3,7 +3,7 @@ from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 import os
 from app.services.job_service import get_unscraped_jobs,  update_job
-
+import re
 
 load_dotenv(r"D:\CHATBOT\.env")
 
@@ -79,7 +79,7 @@ def scrape_job(page: Page, job_url: str):
     header = extract_header(page)
     description = extract_description(page)
     job_details = extract_job_details(page)
-    easy_apply = extract_easy_apply(page)
+    easy_apply = extract_job_details(page)
     skills = extract_skills(description)
 
     return {
@@ -96,7 +96,7 @@ def scrape_job(page: Page, job_url: str):
         "remote": job_details["remote"],
         "active": job_details["active"],
 
-        "easy_apply": easy_apply,
+        "easy_apply": job_details["easy_apply"],
 
         "skills": ", ".join(skills)
     }
@@ -112,11 +112,14 @@ def extract_header(page: Page):
         "applicants": ""
     }
 
-    try:
-        header["title"] = page.locator("h1").first.inner_text().strip()
-    except:
-        pass
+    def extract_title(page: Page) -> str:
 
+        try:
+            header["title"] = page.title().split(" | ")[0].strip()
+
+        except Exception as e:
+            print(f"Failed to extract title: {e}")
+        return ""
     try:
         header["company"] = page.locator(
             'a[href*="/company/"]'
@@ -145,21 +148,25 @@ def extract_header(page: Page):
 
     return header
 
-
-def extract_description(page: Page):
-
+def extract_description(page: Page) -> str:
     try:
+        more_button = page.locator('[data-testid="expandable-text-button"]')
 
-        return page.locator(
-            '[data-testid="expandable-text-box"]'
-        ).inner_text().strip()
+        if more_button.count():
+            more_button.first.scroll_into_view_if_needed()
+            page.wait_for_timeout(500)
+            more_button.first.evaluate("el => el.click()")
+            page.wait_for_timeout(500)
 
-    except:
+        return (
+            page.locator('[data-testid="expandable-text-box"]')
+            .inner_text()
+            .strip()
+        )
 
+    except Exception as e:
+        print(f"Description extraction failed: {e}")
         return ""
-import re
-
-import re
 
 def extract_experience(description: str):
 
@@ -193,7 +200,8 @@ def extract_job_details(page: Page):
         "employment_type": "",
         "experience": "",
         "remote": 0,
-        "active": 1
+        "active": 1,
+        "easy_apply":1
     }
 
     text = page.locator("body").inner_text().lower()
@@ -213,18 +221,16 @@ def extract_job_details(page: Page):
     elif "part-time" in text:
         details["employment_type"] = "Part-time"
 
-
-
     if "no longer accepting applications" in text:
         details["active"] = 0
+
+     # Detect Easy Apply
+    if page.locator("button").filter(has_text="Easy Apply").count() > 0:
+        details["easy_apply"] = 1
+    else:
+        details["easy_apply"] = 0
+    
     return details
-
-
-def extract_easy_apply(page: Page):
-
-    return page.locator(
-        "button:has-text('Easy Apply')"
-    ).count() > 0
 
 
 def extract_skills(description: str):

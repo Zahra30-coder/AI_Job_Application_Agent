@@ -28,5 +28,12 @@ if "remote" not in columns:
         )
     print("Added remote column")
 
+if "easy apply" in columns:
+    with engine.begin() as connection:
+        connection.execute(
+            text("ALTER TABLE jobs ADD COLUMN easy_apply INTEGER DEFAULT 1")
+        )
+    print("Added easy_apply column")
+
 print("Tables created")
 print(Base.metadata.tables.keys())

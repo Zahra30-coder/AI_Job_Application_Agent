@@ -21,6 +21,7 @@ class Job(Base):
     application_status = Column(String, default="Not Applied")
     active = Column(Integer, default=1)
     remote = Column(Integer, default=0)
+    easy_apply = Column(Integer, default = 1)
     source = Column(String)
     inserted_at = Column(
         DateTime,
