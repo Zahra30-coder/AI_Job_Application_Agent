@@ -19,6 +19,8 @@ class Job(Base):
     match_score = Column(Float)
     posted_date = Column(String)
     application_status = Column(String, default="Not Applied")
+    active = Column(Integer, default=1)
+    remote = Column(Integer, default=0)
     source = Column(String)
     inserted_at = Column(
         DateTime,

@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 KEYWORDS = [
     "/jobs/view/",
-    "/comm/jobs/",
+    "/comm/jobs/view/",
 ]
 
 

@@ -14,7 +14,6 @@ job = Job(
     skills="RAG",
     match_score=0,
     posted_date="25/06/2026",
-    application_status="demo insert",
     source="gmail"
 )
 

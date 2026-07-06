@@ -123,7 +123,7 @@ class GmailCollector:
             job_links = normalize_urls(job_links)
 
             for link in job_links:
-                save_job_url(link)
+                save_job_url(link, source="gmail")
 
             all_links.extend(job_links)
 

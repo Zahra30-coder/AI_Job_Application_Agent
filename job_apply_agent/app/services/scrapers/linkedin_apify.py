@@ -107,8 +107,6 @@ def scrape_jobs():
 
                 "applied_at": None,
 
-                "application_status": "Not Applied",
-
                 "source":item.get("source")
             })
 

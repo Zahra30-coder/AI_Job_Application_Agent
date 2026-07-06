@@ -94,7 +94,7 @@ def scrape_job(page: Page, job_url: str):
         "experience": job_details["experience"],
         "employment_type": job_details["employment_type"],
         "remote": job_details["remote"],
-        "job_status": job_details["job_status"],
+        "active": job_details["active"],
 
         "easy_apply": easy_apply,
 
@@ -192,14 +192,14 @@ def extract_job_details(page: Page):
     details = {
         "employment_type": "",
         "experience": "",
-        "remote": False,
-        "job_status": "Open"
+        "remote": 0,
+        "active": 1
     }
 
     text = page.locator("body").inner_text().lower()
 
     if "remote" in text:
-        details["remote"] = True
+        details["remote"] = 1
 
     if "full-time" in text:
         details["employment_type"] = "Full-time"
@@ -213,24 +213,10 @@ def extract_job_details(page: Page):
     elif "part-time" in text:
         details["employment_type"] = "Part-time"
 
-    if "entry level" in text:
-        details["experience"] = "Entry level"
 
-    elif "associate" in text:
-        details["experience"] = "Associate"
-
-    elif "mid-senior" in text:
-        details["experience"] = "Mid-Senior"
-
-    elif "director" in text:
-        details["experience"] = "Director"
-
-    elif "executive" in text:
-        details["experience"] = "Executive"
 
     if "no longer accepting applications" in text:
-        details["job_status"] = "Closed"
-
+        details["active"] = 0
     return details
 
 

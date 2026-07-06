@@ -1,0 +1,1 @@
+{"name":"Local: run_collector","url":"d:\\CHATBOT\\job_apply_agent\\app\\agents\\run_collector.py","tests":[{"id":1783155223459,"input":"","output":""}],"interactive":false,"memoryLimit":1024,"timeLimit":3000,"srcPath":"d:\\CHATBOT\\job_apply_agent\\app\\agents\\run_collector.py","group":"local","local":true}

@@ -1,6 +1,12 @@
 from app.database.db import SessionLocal
 from app.database.models import Job
 from datetime import datetime
+from urllib.parse import urlparse
+
+
+def is_job_detail_url(job_url: str) -> bool:
+    path = urlparse(job_url or "").path.lower()
+    return "/jobs/view/" in path or "/comm/jobs/view/" in path
 
 def save_job(
     title,
@@ -8,55 +14,65 @@ def save_job(
     location,
     job_url,
     description,
-    experience,
-    employment_type,
-    skills,
-    match_score,
-    posted_date,
-    inserted_at,
-    applied_at,
-    application_status,
-    source,
+    experience=None,
+    employment_type=None,
+    skills=None,
+    match_score=0,
+    posted_date=None,
+    inserted_at=None,
+    applied_at=None,
+    source=None,
 ):
     db = SessionLocal()
 
-    existing = (
-        db.query(Job)
-        .filter(Job.job_url == job_url)
-        .first()
-    )
+    try:
+        existing = (
+            db.query(Job)
+            .filter(Job.job_url == job_url)
+            .first()
+        )
 
-    if existing:
-        return False
+        if existing:
+            return False
 
-    job = Job(
-        title=title,
-        company=company,
-        location=location,
-        job_url=job_url,
-        description=description,
-        experience=experience,
-        employment_type=employment_type,
-        skills=skills,
-        match_score=0,
-        posted_date=posted_date,
-        inserted_at = datetime.now(),
-        applied_at = None,
-        application_status="NEW",
-        source=source
-    )
+        job = Job(
+            title=title,
+            company=company,
+            location=location,
+            job_url=job_url,
+            description=description,
+            experience=experience,
+            employment_type=employment_type,
+            skills=skills,
+            match_score=match_score or 0,
+            posted_date=posted_date,
+            inserted_at=inserted_at or datetime.now(),
+            applied_at=applied_at,
+            source=source
+        )
 
-    db.add(job)
-    db.commit()
+        db.add(job)
+        db.commit()
 
-    return True
+        return True
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
 
 '''---------------------------------------------------'''
 
-def save_job_url(job_url: str):
+def save_job_url(job_url: str, source: str | None = None):
     """
     Save a job URL if it doesn't already exist.
     """
+
+    if not is_job_detail_url(job_url):
+        print(f"Skipped non-job URL: {job_url}")
+        return False
 
     db = SessionLocal()
 
@@ -69,11 +85,16 @@ def save_job_url(job_url: str):
         )
 
         if existing_job:
+            if source and not existing_job.source:
+                existing_job.source = source
+                db.commit()
+
             print(f"Already exists: {job_url}")
             return False
 
         job = Job(
-            job_url=job_url
+            job_url=job_url,
+            source=source
         )
 
         db.add(job)
@@ -97,11 +118,12 @@ def get_unscraped_jobs():
     db = SessionLocal()
 
     try:
-        return (
+        jobs = (
             db.query(Job)
             .filter(Job.title == None)
             .all()
         )
+        return [job for job in jobs if is_job_detail_url(job.job_url)]
 
     finally:
         db.close()
@@ -130,16 +152,8 @@ def update_job(job_id: int, details: dict):
         job.employment_type = details.get("employment_type")
         job.skills = details.get("skills")
         job.posted_date = details.get("posted_date")
-
-        # Optional fields if your model has them
-        if hasattr(job, "easy_apply"):
-            job.easy_apply = details.get("easy_apply")
-
-        if hasattr(job, "remote"):
-            job.remote = details.get("remote")
-
-        if hasattr(job, "job_status"):
-            job.job_status = details.get("job_status")
+        job.active = details.get("active", job.active)
+        job.remote = details.get("remote", job.remote)
 
         db.commit()
 

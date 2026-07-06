@@ -31,11 +31,7 @@ class LinkedInCollector:
                 posted_date=job.get("posted_date"),
                 inserted_at=job.get("inserted_at"),
                 applied_at=job.get("applied_at"),
-                source = job.get("source"),
-                application_status=job.get(
-                    "application_status",
-                    "Not Applied"
-                )
+                source = job.get("source")
             )
 
         if inserted:
@@ -52,6 +48,7 @@ class LinkedInCollector:
         for job in jobs:
             try:
                 details = scrape_job(self.page, job.job_url)
+
                 update_job(job.id, details)
             except Exception as e:
                 print(f"❌ Failed: {job.job_url}")
@@ -104,6 +101,6 @@ class LinkedInCollector:
         print(f"\nUpdated {updated} jobs.")
 
 
-    if __name__ == "__main__":
+    #if __name__ == "__main__":
 
-        enrich_jobs()
+        #enrich_jobs()
