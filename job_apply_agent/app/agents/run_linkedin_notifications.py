@@ -4,16 +4,38 @@ from app.services.scrapers.linkedin_notifications import (
     collect_notification_job_links,
 )
 
-with sync_playwright() as p:
-    context = p.chromium.launch_persistent_context(
-        user_data_dir="./linkedin_profile",
-        headless=False,
-    )
+def main():
 
-    page = context.new_page()
+    with sync_playwright() as p:
 
-    links = collect_notification_job_links(page)
+        context = p.chromium.launch_persistent_context(
+            user_data_dir="./linkedin_profile",
+            headless=False,
+        )
 
-    print(links)
+        page = context.new_page()
 
-    context.close()
+        try:
+
+            collected_urls = (
+                collect_notification_job_links(
+                    page=page,
+                    scrolls=6
+                )
+            )
+
+            print(
+                f"\nCollected "
+                f"{len(collected_urls)} URLs"
+            )
+
+            for url in collected_urls:
+                print(url)
+
+        finally:
+
+            context.close()
+
+
+if __name__ == "__main__":
+    main()

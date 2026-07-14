@@ -1,4 +1,4 @@
-from app.services.scrapers.linkedin_scraper import scrape_job, create_browser, login, scrape_job
+from app.services.scrapers.linkedin_scraper import scrape_job, create_browser, login
 from app.services.job_service import save_job, get_unscraped_jobs, update_job
 from playwright.sync_api import sync_playwright
 

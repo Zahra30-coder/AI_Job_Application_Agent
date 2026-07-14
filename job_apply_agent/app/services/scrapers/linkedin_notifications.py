@@ -1,211 +1,1031 @@
-from playwright.sync_api import Page, sync_playwright
-
+from playwright.sync_api import Page
+from app.services.job_service import save_job
+from app.agents.job_collector import LinkedInCollector
 from app.gmail.processors.url_normalizer import normalize_urls
-from app.services.job_service import save_job_url
-from app.services.scrapers.linkedin_scraper import login
+import traceback
 
-NOTIFICATIONS_URL = "https://www.linkedin.com/notifications/"
+NOTIFICATIONS_URL = "https://www.linkedin.com/notifications/?filter=jobs_all"
+
+MAX_NOTIFICATIONS = 20
+MAX_PAGES = 3
+MAX_JOBS = 50
 
 
-def collect_notification_job_links(page: Page, scrolls: int = 6) -> list[str]:
-    print("collect_notification_job_links entered")
-    print("[1] Opening notifications page...")
+def apply_remote_filter(page: Page):
 
-    page.goto(NOTIFICATIONS_URL, wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
+    print("\n[INFO] Applying Remote filter...")
 
-    print(f"[2] Current URL: {page.url}")
+    try:
 
-    if "login" in page.url or "checkpoint" in page.url:
-        print("[ERROR] Login required.")
-        return []
+        page.wait_for_timeout(5000)
 
-    print("[3] Scrolling notifications...")
+        remote_buttons = page.locator(
+            "button"
+        ).filter(
+            has_text="Remote"
+        )
 
-    for i in range(scrolls):
-        page.mouse.wheel(0, 1800)
-        page.wait_for_timeout(1200)
-        print(f"    Scroll {i + 1}/{scrolls}")
+        print(
+            f"[DEBUG] Remote buttons: "
+            f"{remote_buttons.count()}"
+        )
 
-    cards = page.locator("article.nt-card")
-    print(f"[4] Notification cards found: {cards.count()}")
+        if remote_buttons.count() == 0:
 
-    view_buttons = page.get_by_role("button", name="View jobs")
-    print(f"[5] 'View jobs' buttons found: {view_buttons.count()}")
+            print(
+                "[WARN] Remote filter "
+                "not found."
+            )
 
-    # Optional: print every button text
-    for i in range(view_buttons.count()):
-        print(f"    Button {i}: '{view_buttons.nth(i).inner_text()}'")
+            return
 
-    job_links = []
+        remote_buttons.first.click()
 
-    index = 0
+        page.wait_for_timeout(2000)
 
-    while True:
-        print(f"\n[6] Processing index {index}")
+        show_results = page.get_by_role(
+            "button"
+        ).filter(
+            has_text="Show results"
+        )
 
-        view_buttons = page.get_by_role("button", name="View jobs")
+        if show_results.count():
 
-        print(f"    Buttons currently available: {view_buttons.count()}")
+            show_results.first.click()
 
-        if index >= view_buttons.count():
-            print("[7] No more buttons to process.")
-            break
+            page.wait_for_timeout(
+                5000
+            )
 
-        button = view_buttons.nth(index)
+        print(
+            "[OK] Remote filter applied."
+        )
+
+    except Exception as e:
+
+        print(
+            f"[FILTER ERROR] {e}"
+        )
+
+
+def save_job_url(
+    job_url: str,
+    processed_urls: set
+):
+
+    if not job_url:
+        return False
+
+    if job_url.startswith("/"):
+
+        job_url = (
+            "https://www.linkedin.com"
+            + job_url
+        )
+
+    job_url = job_url.split("?")[0]
+
+    normalized = normalize_urls(
+        [job_url]
+    )
+
+    if not normalized:
+        return False
+
+    job_url = normalized[0]
+
+    if "/jobs/view/" not in job_url:
+        return False
+
+    if job_url in processed_urls:
+        return False
+
+    processed_urls.add(job_url)
+
+    inserted = save_job(
+        title="",
+        company="",
+        location="",
+        job_url=job_url,
+        description="",
+        experience="",
+        employment_type="",
+        skills="",
+        match_score=0,
+        posted_date="",
+        source="linkedin_notifications"
+    )
+
+    if inserted:
+
+        print(
+            f"[SAVED] {job_url}"
+        )
+
+    return inserted
+
+
+def scrape_jobs_from_results(
+    page: Page,
+    processed_urls: set
+):
+
+    saved_count = 0
+    print("A")
+    try:
+        apply_remote_filter(page)
+    except Exception:
+        traceback.print_exc()
+        raise
+    print("B")
+
+    for page_no in range(1, MAX_PAGES + 1):
+        print("C")
 
         try:
-            print("[8] Clicking 'View jobs'...")
 
-            with page.expect_navigation(wait_until="domcontentloaded"):
-                button.click()
+            print(
+                f"\n========== "
+                f"PAGE {page_no} "
+                f"=========="
+            )
 
-            print(f"[9] Navigated to: {page.url}")
+            page.wait_for_timeout(5000)
+            print("D")
 
-            normalized = normalize_urls([page.url])
+            cards = page.locator(
+                ".scaffold-layout__list-item"
+            )
 
-            print(f"[10] Normalized URL: {normalized}")
+            if cards.count() == 0:
 
-            if normalized:
-                job_links.append(normalized[0])
-                print("[11] URL added.")
+                cards = page.locator(
+                    ".job-card-container"
+                )
+            
+            print("E")
+            total_jobs = cards.count()
+            print("F")
 
-            print("[12] Going back...")
-            page.go_back(wait_until="domcontentloaded")
-            page.wait_for_timeout(2000)
+            print(
+                f"[INFO] Found "
+                f"{total_jobs} jobs"
+            )
 
-            index += 1
+            for i in range(
+                total_jobs
+            ):
 
-        except Exception as e:
-            print(f"[ERROR] Failed at index {index}: {e}")
+                if (
+                    saved_count
+                    >= MAX_JOBS
+                ):
+
+                    print(
+                        f"[LIMIT] "
+                        f"{MAX_JOBS} jobs "
+                        f"saved."
+                    )
+
+                    return saved_count
+
+                try:
+
+                    cards = page.locator(
+                        ".scaffold-layout__list-item"
+                    )
+
+                    if cards.count() == 0:
+
+                        cards = page.locator(
+                            ".job-card-container"
+                        )
+
+                    if i >= cards.count():
+                        break
+
+                    card = cards.nth(i)
+
+                    card.scroll_into_view_if_needed()
+
+                    page.wait_for_timeout(
+                        1000
+                    )
+
+                    card.click()
+
+                    page.wait_for_timeout(
+                        6000
+                    )
+
+                    job_url = None
+
+                    title_link = page.locator(
+                        "a.jobs-unified-top-card__job-title"
+                    )
+
+                    if title_link.count():
+
+                        job_url = (
+                            title_link.first
+                            .get_attribute(
+                                "href"
+                            )
+                        )
+
+                    if not job_url:
+
+                        links = page.locator(
+                            "a[href*='/jobs/view/']"
+                        )
+
+                        for j in range(
+                            links.count()
+                        ):
+
+                            href = (
+                                links.nth(j)
+                                .get_attribute(
+                                    "href"
+                                )
+                            )
+
+                            if (
+                                href
+                                and "/jobs/view/"
+                                in href
+                            ):
+
+                                job_url = href
+                                break
+
+                    if not job_url:
+                        continue
+
+                    if save_job_url(
+                        job_url,
+                        processed_urls
+                    ):
+                        saved_count += 1
+
+                except Exception as e:
+
+                    print(
+                        f"[JOB ERROR] "
+                        f"{e}"
+                    )
+
+            if page_no == MAX_PAGES:
+                break
 
             try:
-                print("[RECOVERY] Reloading notifications...")
-                page.goto(NOTIFICATIONS_URL, wait_until="domcontentloaded")
-                page.wait_for_timeout(2000)
 
-                for _ in range(scrolls):
-                    page.mouse.wheel(0, 1800)
-                    page.wait_for_timeout(1200)
+                next_button = page.get_by_role(
+                    "button"
+                ).filter(
+                    has_text=str(
+                        page_no + 1
+                    )
+                )
 
-            except Exception as ex:
-                print(f"[RECOVERY ERROR] {ex}")
+                if next_button.count():
 
-            index += 1
+                    print(
+                        f"\nOpening page "
+                        f"{page_no + 1}"
+                    )
 
-    print(f"[DONE] Collected {len(job_links)} job links.")
+                    next_button.first.click()
 
-    return job_links
+                    page.wait_for_timeout(
+                        5000
+                    )
+
+                else:
+
+                    print(
+                        "[STOP] No next page."
+                    )
+
+                    break
+
+            except Exception as e:
+
+                print(
+                    f"[PAGE ERROR] "
+                    f"{e}"
+                )
+
+                break
+
+        except Exception as e:
+
+            print(
+                f"[PAGE {page_no} "
+                f"ERROR] {e}"
+            )
+
+            continue
+
+    return saved_count
 
 
-def collect_notification_job_links(page: Page, scrolls: int = 6) -> list[str]:
+def collect_notification_job_links(
+    page: Page,
+    scrolls: int = 6
+):
+    print("VERSION-2026-07-14")
     print("[1] Opening notifications page...")
 
-    page.goto(NOTIFICATIONS_URL, wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
+    page.goto(
+        NOTIFICATIONS_URL,
+        wait_until="domcontentloaded"
+    )
 
-    print(f"[2] Current URL: {page.url}")
+    page.wait_for_timeout(5000)
 
-    if "login" in page.url or "checkpoint" in page.url:
-        print("[ERROR] Login required.")
+    if (
+        "login" in page.url
+        or "checkpoint" in page.url
+    ):
+
+        print(
+            "[ERROR] Login required."
+        )
+
         return []
 
-    print("[3] Scrolling...")
+    print(
+        "[2] Scrolling notifications..."
+    )
 
-    for i in range(scrolls):
-        page.mouse.wheel(0, 1800)
-        page.wait_for_timeout(1200)
-        print(f"    Scroll {i + 1}/{scrolls}")
+    for _ in range(scrolls):
 
-    job_links = []
+        page.mouse.wheel(
+            0,
+            1800
+        )
 
-    index = 0
+        page.wait_for_timeout(
+            1200
+        )
 
-    while True:
-        cards = page.locator("article.nt-card")
-        total_cards = cards.count()
+    cards = page.locator(
+        "article.nt-card"
+    )
 
-        print(f"\n[4] Total cards: {total_cards}")
+    total_cards = min(
+        cards.count(),
+        MAX_NOTIFICATIONS
+    )
 
-        if index >= total_cards:
-            print("[DONE] No more cards.")
-            break
+    print(
+        f"[4] Notification cards found: "
+        f"{total_cards}"
+    )
 
-        card = cards.nth(index)
+    processed_urls = set()
+    saved_count = 0
 
-        print(f"[5] Processing card {index}")
+    for idx in range(
+        total_cards
+    ):
 
         try:
-            print(card.inner_text())
-        except Exception:
-            pass
 
-        # ---- Time filter ----
-        try:
-            time_text = (
-                card.locator("p.nt-card__time-ago")
+            cards = page.locator(
+                "article.nt-card"
+            )
+
+            if idx >= cards.count():
+                break
+
+            card = cards.nth(idx)
+
+            headline = card.locator(
+                "a.nt-card__headline"
+            )
+
+            if headline.count() == 0:
+                continue
+
+            text = (
+                headline.first
                 .inner_text()
-                .strip()
                 .lower()
             )
 
-            print(f"[6] Time: {time_text}")
+            if (
+                "hiring" not in text
+                and "apply" not in text
+            ):
 
-            if time_text.endswith(("w", "mo", "y")):
-                print("[STOP] Older than 3 days.")
-                break
+                continue
 
-            if time_text.endswith("d"):
-                days = int(time_text[:-1])
-                if days > 3:
-                    print("[STOP] Older than 3 days.")
-                    break
+            href = (
+                headline.first
+                .get_attribute(
+                    "href"
+                )
+            )
 
-        except Exception as e:
-            print(f"[WARN] Couldn't read timestamp: {e}")
+            if not href:
+                continue
 
-        # ---- Find button ----
-        button = card.locator("button").filter(has_text="View jobs")
+            if href.startswith("/"):
 
-        print(f"[7] Buttons found: {button.count()}")
+                href = (
+                    "https://www.linkedin.com"
+                    + href
+                )
 
-        if button.count() == 0:
-            print("[SKIP] No View jobs button.")
-            index += 1
-            continue
+            print(
+                f"\nOpening notification "
+                f"{idx + 1}"
+            )
 
-        try:
-            print("[8] Clicking View jobs...")
+            page.goto(
+                href,
+                wait_until="domcontentloaded"
+            )
 
-            with page.expect_navigation(wait_until="domcontentloaded"):
-                button.first.click()
+            page.wait_for_timeout(
+                8000
+            )
 
-            print(f"[9] Arrived at: {page.url}")
+            print(
+                f"[OPENED] "
+                f"{page.url}"
+            )
 
-            normalized = normalize_urls([page.url])
+            saved_count += (
+                scrape_jobs_from_results(
+                    page,
+                    processed_urls
+                )
+            )
 
-            print(f"[10] Normalized: {normalized}")
+            print(
+                "\nReturning to "
+                "notifications..."
+            )
 
-            if normalized:
-                job_links.extend(normalized)
+            page.goto(
+                NOTIFICATIONS_URL,
+                wait_until="domcontentloaded"
+            )
 
-            print("[11] Going back...")
-
-            page.go_back(wait_until="domcontentloaded")
-            page.wait_for_timeout(2000)
-
-        except Exception as e:
-            print(f"[ERROR] {e}")
-
-            page.goto(NOTIFICATIONS_URL, wait_until="domcontentloaded")
-            page.wait_for_timeout(3000)
+            page.wait_for_timeout(
+                5000
+            )
 
             for _ in range(scrolls):
-                page.mouse.wheel(0, 1800)
-                page.wait_for_timeout(1200)
 
-        index += 1
+                page.mouse.wheel(
+                    0,
+                    1800
+                )
 
-    print(f"[DONE] Collected {len(job_links)} links.")
+                page.wait_for_timeout(
+                    1200
+                )
 
-    return job_links
+        except Exception as e:
+
+            print(
+                f"[ERROR] Notification "
+                f"{idx + 1}: {e}"
+            )
+            traceback.print_exc()
+
+            try:
+
+                saved_count += (
+                    scrape_jobs_from_results(
+                        page,
+                        processed_urls
+                    )
+                )
+
+            except Exception as e:
+
+                print(
+                    f"[SCRAPE ERROR] {e}"
+                )
+
+                continue
+
+    print(
+        f"\n[DONE] Saved "
+        f"{saved_count} jobs."
+    )
+
+    print(
+        f"[DONE] Collected "
+        f"{len(processed_urls)} "
+        f"unique URLs."
+    )
+
+    if saved_count > 0:
+
+        print(
+            "\nStarting enrichment "
+            "pipeline..."
+        )
+
+        LinkedInCollector().enrich_jobs()
+
+    return list(processed_urls)
+def scrape_jobs_from_results(page: Page,processed_urls: set,) -> int:
+
+    saved_count = 0
+
+    print("\n[INFO] Applying Remote filter...")
+
+    try:
+
+        remote_btn = page.locator(
+            "#searchFilter_workplaceType"
+        )
+
+        if remote_btn.count():
+
+            remote_btn.first.click()
+
+            page.wait_for_timeout(1500)
+
+            remote_checkbox = page.locator(
+                "#workplaceType-2"
+            )
+
+            if remote_checkbox.count():
+
+                try:
+
+                    if not remote_checkbox.is_checked():
+                        remote_checkbox.check()
+
+                except Exception:
+                    pass
+
+            show_results = page.get_by_role(
+                "button",
+                name="Show results"
+            )
+
+            if show_results.count():
+                show_results.last.click()
+
+            page.wait_for_load_state(
+                "networkidle"
+            )
+
+            page.wait_for_timeout(
+                5000
+            )
+
+            print(
+                "[OK] Remote filter applied."
+            )
+
+    except Exception as e:
+
+        print(
+            f"[FILTER ERROR] {e}"
+        )
+
+    # ===================================
+    # SCRAPE 3 PAGES
+    # ===================================
+
+    for page_no in range(1, 4):
+
+        print(
+            f"\n========== PAGE {page_no} =========="
+        )
+
+        page.wait_for_load_state(
+            "networkidle"
+        )
+
+        page.wait_for_timeout(
+            5000
+        )
+
+        job_cards = page.locator(
+            ".job-card-container"
+        )
+
+        if job_cards.count() == 0:
+
+            job_cards = page.locator(
+                ".scaffold-layout__list-item"
+            )
+
+        total_jobs = job_cards.count()
+
+        print(
+            f"[INFO] Found "
+            f"{total_jobs} jobs"
+        )
+
+        for i in range(total_jobs):
+
+            try:
+
+                cards = page.locator(
+                    ".job-card-container"
+                )
+
+                if cards.count() == 0:
+
+                    cards = page.locator(
+                        ".scaffold-layout__list-item"
+                    )
+
+                if i >= cards.count():
+                    break
+
+                card = cards.nth(i)
+
+                try:
+
+                    title = (
+                        card.inner_text()
+                        .strip()
+                    )
+
+                    print(
+                        f"\n[{i+1}] "
+                        f"{title[:100]}"
+                    )
+
+                except Exception:
+                    pass
+
+                card.click()
+
+                page.wait_for_timeout(
+                    2500
+                )
+
+                job_url = None
+
+                try:
+
+                    title_link = page.locator(
+                        "a.jobs-unified-top-card__job-title"
+                    )
+
+                    if title_link.count():
+
+                        job_url = (
+                            title_link.first
+                            .get_attribute(
+                                "href"
+                            )
+                        )
+
+                except Exception:
+                    pass
+
+                if not job_url:
+
+                    links = page.locator(
+                        "a[href*='/jobs/view/']"
+                    )
+
+                    for j in range(
+                        links.count()
+                    ):
+
+                        href = (
+                            links.nth(j)
+                            .get_attribute(
+                                "href"
+                            )
+                        )
+
+                        if (
+                            href
+                            and "/jobs/view/"
+                            in href
+                        ):
+
+                            job_url = href
+                            break
+
+                if not job_url:
+                    continue
+
+                if job_url.startswith("/"):
+
+                    job_url = (
+                        "https://www.linkedin.com"
+                        + job_url
+                    )
+
+                job_url = (
+                    job_url.split("?")[0]
+                )
+
+                normalized = normalize_urls(
+                    [job_url]
+                )
+
+                if not normalized:
+                    continue
+
+                job_url = normalized[0]
+
+                if (
+                    "/jobs/view/"
+                    not in job_url
+                ):
+                    continue
+
+                if (
+                    job_url
+                    in processed_urls
+                ):
+                    continue
+
+                processed_urls.add(
+                    job_url
+                )
+
+                try:
+
+                    inserted = save_job(
+                        title="",
+                        company="",
+                        location="",
+                        job_url=job_url,
+                        description="",
+                        experience="",
+                        employment_type="",
+                        skills="",
+                        match_score=0,
+                        posted_date="",
+                        source="linkedin_notifications"
+                    )
+
+                    if inserted:
+
+                        saved_count += 1
+
+                        print(
+                            f"[SAVED] "
+                            f"{job_url}"
+                        )
+
+                except Exception as e:
+
+                    print(
+                        f"[SAVE ERROR] "
+                        f"{job_url} -> {e}"
+                    )
+
+            except Exception as e:
+
+                print(
+                    f"[JOB ERROR] "
+                    f"{e}"
+                )
+
+        # ===================================
+        # NEXT PAGE
+        # ===================================
+
+        if page_no == 3:
+            break
+
+        try:
+
+            pagination_buttons = page.locator(
+                "button.artdeco-pagination__indicator"
+            )
+
+            if (
+                pagination_buttons.count()
+                > page_no
+            ):
+
+                print(
+                    f"\nOpening page "
+                    f"{page_no + 1}"
+                )
+
+                pagination_buttons.nth(
+                    page_no
+                ).click()
+
+                page.wait_for_load_state(
+                    "networkidle"
+                )
+
+                page.wait_for_timeout(
+                    5000
+                )
+
+            else:
+
+                print(
+                    "[STOP] No more pages."
+                )
+
+                break
+
+        except Exception as e:
+
+            print(
+                f"[PAGE ERROR] {e}"
+            )
+
+            break
+
+    return saved_count
+
+#-----------------------------------------
+def collect_notification_job_links(
+    page: Page,
+    scrolls: int = 6
+):
+
+    print("[1] Opening notifications page...")
+
+    page.goto(
+        NOTIFICATIONS_URL,
+        wait_until="domcontentloaded"
+    )
+
+    page.wait_for_timeout(5000)
+
+    if (
+        "login" in page.url
+        or "checkpoint" in page.url
+    ):
+        print("[ERROR] Login required.")
+        return []
+
+    print("[2] Scrolling notifications...")
+
+    for _ in range(scrolls):
+
+        page.mouse.wheel(
+            0,
+            1800
+        )
+
+        page.wait_for_timeout(
+            1200
+        )
+
+    cards = page.locator(
+        "article.nt-card"
+    )
+
+    print(
+        f"[4] Notification cards found: "
+        f"{cards.count()}"
+    )
+
+    processed_urls = set()
+    saved_count = 0
+
+    for idx in range(cards.count()):
+
+        try:
+
+            cards = page.locator(
+                "article.nt-card"
+            )
+
+            if idx >= cards.count():
+                break
+
+            card = cards.nth(idx)
+
+            view_button = card.locator(
+                "button[role='link']"
+            )
+
+            if view_button.count() == 0:
+
+                print(
+                    f"[SKIP] Card "
+                    f"{idx+1} has no "
+                    f"View Jobs button."
+                )
+
+                continue
+
+            print(
+                f"\nOpening notification "
+                f"{idx + 1}"
+            )
+
+            view_button.first.scroll_into_view_if_needed()
+
+            page.wait_for_timeout(
+                1000
+            )
+
+            view_button.first.click()
+
+            page.wait_for_load_state(
+                "networkidle"
+            )
+
+            page.wait_for_timeout(
+                5000
+            )
+
+            print(
+                f"[OPENED] {page.url}"
+            )
+
+            saved_count += (
+                scrape_jobs_from_results(
+                    page,
+                    processed_urls
+                )
+            )
+
+            print(
+                "\nReturning to notifications..."
+            )
+
+            page.goto(
+                NOTIFICATIONS_URL,
+                wait_until="domcontentloaded"
+            )
+
+            page.wait_for_timeout(
+                5000
+            )
+
+            for _ in range(scrolls):
+
+                page.mouse.wheel(
+                    0,
+                    1800
+                )
+
+                page.wait_for_timeout(
+                    1200
+                )
+
+        except Exception as e:
+
+            print(
+                f"[ERROR] Notification "
+                f"{idx + 1}: {e}"
+            )
+
+            try:
+
+                page.goto(
+                    NOTIFICATIONS_URL,
+                    wait_until="domcontentloaded"
+                )
+
+                page.wait_for_timeout(
+                    5000
+                )
+
+                for _ in range(scrolls):
+
+                    page.mouse.wheel(
+                        0,
+                        1800
+                    )
+
+                    page.wait_for_timeout(
+                        1200
+                    )
+
+            except Exception:
+                pass
+
+    print(
+        f"\n[DONE] Saved "
+        f"{saved_count} jobs."
+    )
+
+    print(
+        f"[DONE] Collected "
+        f"{len(processed_urls)} "
+        f" unique URLs."
+    )
+
+    if saved_count > 0:
+
+        print(
+            "\nStarting enrichment "
+            "pipeline..."
+        )
+
+        LinkedInCollector().enrich_jobs()
+
+    return list(processed_urls)
