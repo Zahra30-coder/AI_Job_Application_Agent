@@ -45,9 +45,7 @@ python -m app.agents.run_linkedin_notifications
 ## Workflow
 
 ```text
-LinkedIn Alerts
-      ↓
- Gmail API
+ Gmail API, LinkedIn Notification Alerts
       ↓
  Link Extraction
       ↓
