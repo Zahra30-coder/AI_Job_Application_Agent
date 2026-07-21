@@ -38,8 +38,10 @@ playwright install
 ```bash
 python -m app.database.init_db
 #Creating DB
+
 python -m app.gmail.collector
 #Running Gmail Scraper
+
 python -m app.agents.run_linkedin_notifications
 #Running Linkedin Notification Scraper
 ```
