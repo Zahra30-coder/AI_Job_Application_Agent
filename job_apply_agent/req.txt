@@ -1,0 +1,97 @@
+#pip install -r req.txt
+
+google-generativeai
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+
+jupyter
+python-dotenv
+pandas
+plotly
+matplotlib
+ipykernel
+uvicorn 
+pypdf
+playwright
+codex
+apify-client
+# -----------------------------
+# FastAPI Framework
+# -----------------------------
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# -----------------------------
+# Async HTTP Client
+# -----------------------------
+httpx==0.27.0
+
+# -----------------------------
+# Pydantic (Settings + Models)
+# -----------------------------
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# -----------------------------
+# LangGraph Orchestration
+# -----------------------------
+langgraph==0.2.39
+langchain-core==0.3.13
+
+# -----------------------------
+# Gemini API
+# -----------------------------
+google-generativeai==0.8.3
+
+# -----------------------------
+# Database (PostgreSQL)
+# -----------------------------
+sqlalchemy
+
+# -----------------------------
+# Observability (Langfuse)
+# -----------------------------
+langfuse==2.50.1
+
+# -----------------------------
+# Retry + Resilience
+# -----------------------------
+tenacity==9.0.0
+
+# -----------------------------
+# Environment Variables
+# -----------------------------
+python-dotenv==1.0.1
+
+# -----------------------------
+# Logging Enhancements
+# -----------------------------
+structlog==24.4.0
+streamlit==1.39.0
+requests==2.32.3
+# -----------------------------
+# Testing
+# -----------------------------
+pytest==8.3.3
+pytest-asyncio==0.24.0
+
+# -----------------------------
+# Optional JSON Speed Boost
+# -----------------------------
+orjson==3.10.7
+
+crewai
+crewai-tools
+
+playwright
+alembic
+beautifulsoup4
+lxml
+python-multipart
+jinja2
+apscheduler
+loguru
+tenacity
+aiofiles
