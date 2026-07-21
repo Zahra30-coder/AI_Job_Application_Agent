@@ -2,15 +2,15 @@
 
 AI-powered job discovery and application automation tool that collects jobs from LinkedIn, enriches job data, filters relevant opportunities, and tracks applications.
 
+## Impact
+
+Automates a highly manual job search workflow, reducing the time spent discovering, organizing, and tracking job opportunities.
+
 ## Features
 
-- Extract jobs from LinkedIn Job Alerts using Gmail API
-- Scrape job details with Playwright
-- Store and manage jobs in SQLite
-- Enrich jobs with title, company, location, skills, and description
-- Filter jobs by experience, location, and remote preference
-- Detect Easy Apply opportunities
-- Track application status
+- Extract jobs from LinkedIn Job Alerts using Gmail API and LinkedIn-in app notifications 
+- Scrape job details with Playwright and insert jobs in SQLite
+- Apply on the candidate's behalf
 
 ## Tech Stack
 
@@ -18,8 +18,6 @@ AI-powered job discovery and application automation tool that collects jobs from
 - Playwright
 - Gmail API
 - SQLite
-- SQLAlchemy
-- BeautifulSoup
 
 ## Installation
 
@@ -39,7 +37,9 @@ playwright install
 
 ```bash
 python -m app.database.init_db
+python -m app.gmail.collector
 python -m app.agents.run_collector
+python -m app.agents.run_linkedin_notifications
 ```
 
 ## Workflow
@@ -62,6 +62,3 @@ LinkedIn Alerts
 
 LinkedIn emails contain tracking links and LinkedIn pages load dynamically. To improve reliability, I built a URL normalization pipeline and implemented Playwright-based retry logic, explicit waits, and persistent login sessions.
 
-## Impact
-
-Automates a highly manual job search workflow, reducing the time spent discovering, organizing, and tracking job opportunities.
