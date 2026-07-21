@@ -12,7 +12,7 @@ Automates a highly manual job search workflow, reducing the time spent discoveri
 - Scrape job details with Playwright and insert jobs in SQLite
 - Apply on the candidate's behalf
 
-  ## Workflow
+## Workflow
 
 ```text
  Gmail API, LinkedIn Notification Alerts
