@@ -12,6 +12,20 @@ Automates a highly manual job search workflow, reducing the time spent discoveri
 - Scrape job details with Playwright and insert jobs in SQLite
 - Apply on the candidate's behalf
 
+  ## Workflow
+
+```text
+ Gmail API, LinkedIn Notification Alerts
+      ↓
+ Link Extraction
+      ↓
+ Playwright Scraper
+      ↓
+ SQLite Database
+      ↓
+ Job Filtering & Tracking
+```
+
 ## Tech Stack
 
 - Python
@@ -44,20 +58,6 @@ python -m app.gmail.collector
 
 python -m app.agents.run_linkedin_notifications
 #Running Linkedin Notification Scraper
-```
-
-## Workflow
-
-```text
- Gmail API, LinkedIn Notification Alerts
-      ↓
- Link Extraction
-      ↓
- Playwright Scraper
-      ↓
- SQLite Database
-      ↓
- Job Filtering & Tracking
 ```
 
 ## Key Challenge
