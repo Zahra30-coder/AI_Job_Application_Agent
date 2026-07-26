@@ -33,6 +33,107 @@ Automates a highly manual job search workflow, reducing the time spent discoveri
 - Gmail API
 - SQLite
 
+## 🏗️ System Architecture
+
+```text
+                               Scheduler
+                                   │
+                                   ▼
+                           LangGraph Agent
+                                   │
+        ┌──────────────────┬──────────────────────┬──────────────────┐
+        ▼                  ▼                      ▼
+   Gmail Jobs     LinkedIn Notifications      #Hiring Posts
+        │                  │                      │
+        └──────────────────┴──────────────────────┘
+                                   │
+                                   ▼
+                    Does a "View Job" link exist?
+                           │                 │
+                        Yes │                 │ No
+                           ▼                 ▼
+                 Scrape Full LinkedIn JD   Continue with
+                                           post/email data
+                           │                 │
+                           └─────────┬───────┘
+                                     ▼
+                        Opportunity Extraction
+          (Job URL, Company, Title, Description, Email, Source)
+                                     │
+                                     ▼
+                 Link Normalization & Deduplication
+             (Canonical URL + Company + Role matching)
+                                     │
+                                     ▼
+                   Structured Extraction (LLM)
+          ──────────────────────────────────────────────
+          • Company
+          • Job Title
+          • Skills
+          • Experience
+          • Location
+          • HR Email (from post and/or JD)
+          • Easy Apply Availability
+          • External ATS Link
+          ──────────────────────────────────────────────
+                                     │
+                                     ▼
+                          Resume Match Scoring
+                                     │
+                         Score ≥ Threshold?
+                           │               │
+                          No              Yes
+                           │               │
+                        Reject             ▼
+                                  Resume Tailoring
+                                          │
+                                          ▼
+                                Cover Letter Generation
+                                          │
+                                          ▼
+                               Application Policy Engine
+                                          │
+             ┌────────────────────────────┼────────────────────────────┐
+             ▼                            ▼                            ▼
+        Easy Apply                 Send HR Email              External ATS Apply
+             │                            │                            │
+             └────────────────────────────┴────────────────────────────┘
+                                          │
+                                          ▼
+                           Update Database & Notify User
+```
+
+### Workflow Overview
+
+1. **Job Discovery**
+   - Collect opportunities from Gmail, LinkedIn Notifications, and LinkedIn `#Hiring` posts.
+
+2. **Job Enrichment**
+   - If a `#Hiring` post contains a **View Job** link, scrape the complete LinkedIn job description.
+   - Otherwise, continue using the information available in the post or email.
+
+3. **Opportunity Processing**
+   - Extract relevant job information.
+   - Normalize job links and remove duplicate opportunities.
+
+4. **LLM-Based Analysis**
+   - Parse the job description into structured fields.
+   - Evaluate resume-job compatibility using an LLM.
+
+5. **Application Preparation**
+   - Tailor the resume.
+   - Generate a personalized cover letter.
+
+6. **Application Execution**
+   - Depending on the available application methods, the agent can:
+     - Submit **LinkedIn Easy Apply**
+     - Send a personalized application via **HR Email**
+     - Apply through an **External ATS**
+   - Multiple application methods can be executed for the same opportunity when appropriate.
+
+7. **Tracking**
+   - Record all actions in the database and notify the user of the application status.
+
 ## Installation
 
 ```bash
