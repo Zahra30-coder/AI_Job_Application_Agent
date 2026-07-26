@@ -41,7 +41,7 @@ Automates a highly manual job search workflow, reducing the time spent discoveri
                                    ▼
                            LangGraph Agent
                                    │
-        ┌──────────────────┬──────────────────────┬──────────────────┐
+        ┌──────────────────┬──────────────────────┬
         ▼                  ▼                      ▼
    Gmail Jobs     LinkedIn Notifications      #Hiring Posts
         │                  │                      │
